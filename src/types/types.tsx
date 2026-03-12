@@ -21,3 +21,13 @@ export interface ChatRoom {
   avatar: string;
   isActive: boolean;
 }
+
+export interface CalendarEvent {
+  id: string;
+  title: string;
+  date: string; // YYYY-MM-DD
+  startTime: string; // HH:mm
+  endTime: string; // HH:mm
+  color: string;
+  description?: string;
+}

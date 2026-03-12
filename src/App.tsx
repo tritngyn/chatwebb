@@ -1,7 +1,8 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import Sidebar from "./components/Sidebar";
 import ChatList from "./components/ChatList";
 import ChatWindow from "./components/ChatWindow";
+import Calendar from "./components/Calendar";
 import { chatRooms } from "./mockdata";
 import type { ChatRoom } from "./types/types";
 
@@ -39,6 +40,19 @@ const buildEnrichedRooms = (baseRooms: ChatRoom[]): ChatRoom[] => {
 };
 
 function App() {
+  const [activePage, setActivePage] = useState("chat");
+
+  // Dark mode state — đọc từ localStorage hoặc mặc định light
+  const [darkMode, setDarkMode] = useState(() => {
+    return localStorage.getItem("darkMode") === "true";
+  });
+
+  // Toggle class "dark" trên <html> và lưu vào localStorage
+  useEffect(() => {
+    document.documentElement.classList.toggle("dark", darkMode);
+    localStorage.setItem("darkMode", String(darkMode));
+  }, [darkMode]);
+
   // Quản lý danh sách các phòng chat bằng State
   const [rooms, setRooms] = useState(() => buildEnrichedRooms(chatRooms));
 
@@ -72,16 +86,26 @@ function App() {
   const activeRoom = rooms.find((room) => room.isActive) || rooms[0];
 
   return (
-    <div className="flex h-screen bg-gradient-to-br from-purple-100 to-pink-100 p-4 md:p-8 font-sans">
-      <div className="flex w-full h-full max-w-7xl mx-auto bg-white rounded-3xl shadow-2xl overflow-hidden border border-gray-100">
-        <Sidebar />
-
-        <ChatList rooms={rooms} onSelectRoom={handleSelectRoom} />
-
-        <ChatWindow
-          activeRoom={activeRoom}
-          onMessagesUpdate={handleMessagesUpdate}
+    <div className="flex h-screen bg-gradient-to-br from-purple-100 to-pink-100 dark:from-gray-900 dark:to-gray-950 p-4 md:p-8 font-sans transition-colors duration-300">
+      <div className="flex w-full h-full max-w-7xl mx-auto bg-white dark:bg-gray-800 rounded-3xl shadow-2xl overflow-hidden border border-gray-100 dark:border-gray-700 transition-colors duration-300">
+        <Sidebar
+          activePage={activePage}
+          onPageChange={setActivePage}
+          darkMode={darkMode}
+          onToggleDark={() => setDarkMode(!darkMode)}
         />
+
+        {activePage === "chat" && (
+          <>
+            <ChatList rooms={rooms} onSelectRoom={handleSelectRoom} />
+            <ChatWindow
+              activeRoom={activeRoom}
+              onMessagesUpdate={handleMessagesUpdate}
+            />
+          </>
+        )}
+
+        {activePage === "calendar" && <Calendar />}
       </div>
     </div>
   );
