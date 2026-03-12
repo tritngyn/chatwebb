@@ -1,0 +1,17 @@
+@import "tailwindcss";
+
+/* Custom Scrollbar */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 5px;
+}
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background-color: transparent;
+  border-radius: 10px;
+  transition: background-color 0.3s ease;
+}
+.custom-scrollbar:hover::-webkit-scrollbar-thumb {
+  background-color: #d1d5db; /* Hiện màu xám khi hover */
+}
