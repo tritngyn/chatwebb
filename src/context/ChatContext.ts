@@ -16,6 +16,9 @@ export interface ChatContextValue {
   messages: Message[];
   selectRoom: (roomId: number) => void;
   sendMessage: (text: string) => void;
+  hasMoreMessages: boolean;
+  isLoadingOlderMessages: boolean;
+  loadOlderMessages: () => void;
   toggleReaction: (msgId: number, emoji: string) => void;
 
   // Mobile panel toggle

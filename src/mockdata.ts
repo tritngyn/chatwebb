@@ -1,5 +1,45 @@
 import type { User, ChatRoom, Message } from "./types/types";
 
+const SIMULATED_MESSAGE_COUNT = 1000;
+const MINUTE_MS = 60 * 1000;
+const BASE_START_TIME = new Date("2026-03-11T08:00:00+07:00").getTime();
+
+const formatMessageTime = (timestamp: number) =>
+  new Date(timestamp).toLocaleTimeString([], {
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+
+const expandConversation = (
+  roomId: number,
+  roomName: string,
+  seedMessages: Message[],
+): Message[] => {
+  const expanded: Message[] = [];
+
+  for (let i = 0; i < SIMULATED_MESSAGE_COUNT; i += 1) {
+    const seed = seedMessages[i % seedMessages.length];
+    const timestamp =
+      BASE_START_TIME + roomId * 13 * MINUTE_MS + i * 4 * MINUTE_MS;
+    const loop = Math.floor(i / seedMessages.length) + 1;
+    const isLatestWindow = i >= SIMULATED_MESSAGE_COUNT - seedMessages.length;
+
+    expanded.push({
+      ...seed,
+      id: roomId * 10000 + i + 1,
+      text: isLatestWindow
+        ? seed.text
+        : `${seed.text} · ${roomName} log #${loop}`,
+      time: formatMessageTime(timestamp),
+      timestamp,
+      status: seed.status,
+      reactions: seed.reactions,
+    });
+  }
+
+  return expanded;
+};
+
 // Thông tin người dùng hiện tại
 export const currentUser: User = {
   id: "me",
@@ -102,7 +142,7 @@ export const chatRooms: ChatRoom[] = [
 ];
 
 // Hội thoại mẫu cho từng phòng chat
-export const roomMessages: Record<number, Message[]> = {
+const baseRoomMessages: Record<number, Message[]> = {
   // Jensen Huang - NVIDIA CEO
   1: [
     { id: 1, senderId: 1, text: "Hey! Have you seen the new Blackwell architecture specs?", time: "10:20" },
@@ -211,6 +251,15 @@ export const roomMessages: Record<number, Message[]> = {
     { id: 7, senderId: 10, text: "Climate tech report is ready for review", time: "13:18" },
   ],
 };
+
+export const roomMessages: Record<number, Message[]> = Object.fromEntries(
+  Object.entries(baseRoomMessages).map(([roomId, messages]) => {
+    const numericRoomId = Number(roomId);
+    const roomName =
+      chatRooms.find((room) => room.id === numericRoomId)?.name ?? "Unknown";
+    return [numericRoomId, expandConversation(numericRoomId, roomName, messages)];
+  }),
+) as Record<number, Message[]>;
 
 // Backward-compatible: tin nhắn mặc định cho phòng 1
 export const currentMessages: Message[] = roomMessages[1];

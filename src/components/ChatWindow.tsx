@@ -12,6 +12,9 @@ const ChatWindow = () => {
     activeRoom,
     messages,
     sendMessage,
+    hasMoreMessages,
+    isLoadingOlderMessages,
+    loadOlderMessages,
     toggleReaction,
     setShowChatWindow,
   } = useChatContext();
@@ -19,6 +22,9 @@ const ChatWindow = () => {
   const [inputText, setInputText] = useState("");
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const isSubmittingRef = useRef(false);
+  const shouldStickToBottomRef = useRef(true);
+  const previousScrollHeightRef = useRef(0);
+  const isPrependingRef = useRef(false);
   const [activeReactionId, setActiveReactionId] = useState<number | null>(null);
   const [showInputEmoji, setShowInputEmoji] = useState(false);
 
@@ -35,8 +41,25 @@ const ChatWindow = () => {
   useEffect(() => {
     const container = messagesContainerRef.current;
     if (!container) return;
-    container.scrollTo({ top: container.scrollHeight, behavior: "smooth" });
-  }, [messages, activeRoom?.id]);
+    if (isPrependingRef.current) {
+      const scrollDelta = container.scrollHeight - previousScrollHeightRef.current;
+      container.scrollTop += scrollDelta;
+      isPrependingRef.current = false;
+      return;
+    }
+
+    if (shouldStickToBottomRef.current) {
+      container.scrollTo({ top: container.scrollHeight, behavior: "smooth" });
+    }
+  }, [messages, activeRoom?.id, activeRoom?.isTyping]);
+
+  useEffect(() => {
+    const container = messagesContainerRef.current;
+    if (!container) return;
+    container.scrollTop = container.scrollHeight;
+    shouldStickToBottomRef.current = true;
+    isPrependingRef.current = false;
+  }, [activeRoom?.id]);
 
   const handleSend = () => {
     const trimmedText = inputText.trim();
@@ -53,6 +76,25 @@ const ChatWindow = () => {
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     handleSend();
+  };
+
+  const handleMessagesScroll = () => {
+    const container = messagesContainerRef.current;
+    if (!container) return;
+
+    const distanceFromBottom =
+      container.scrollHeight - container.scrollTop - container.clientHeight;
+    shouldStickToBottomRef.current = distanceFromBottom < 120;
+
+    if (
+      container.scrollTop <= 80 &&
+      hasMoreMessages &&
+      !isLoadingOlderMessages
+    ) {
+      previousScrollHeightRef.current = container.scrollHeight;
+      isPrependingRef.current = true;
+      loadOlderMessages();
+    }
   };
 
   return (
@@ -87,8 +129,18 @@ const ChatWindow = () => {
       {/* Khu vực hiển thị tin nhắn */}
       <div
         ref={messagesContainerRef}
+        onScroll={handleMessagesScroll}
         className="flex-1 overflow-y-auto p-3 md:p-6 space-y-4 md:space-y-6 custom-scrollbar"
       >
+        {hasMoreMessages && (
+          <div className="flex justify-center">
+            <div className="rounded-full bg-white/90 dark:bg-gray-800/90 px-4 py-1.5 text-[11px] text-gray-400 shadow-sm border border-gray-100 dark:border-gray-700">
+              {isLoadingOlderMessages
+                ? "Loading older messages..."
+                : "Scroll up to load older messages"}
+            </div>
+          </div>
+        )}
         <div className="text-center text-xs text-gray-400 mb-4">
           Today, 10:30 AM
         </div>
@@ -186,6 +238,35 @@ const ChatWindow = () => {
             </motion.div>
           );
         })}
+
+        {activeRoom?.isTyping && (
+          <motion.div
+            key={`typing-${activeRoom.id}`}
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 8 }}
+            transition={{ duration: 0.2 }}
+            className="flex justify-start items-end gap-2"
+          >
+            <img
+              src={activeRoom.avatar}
+              alt={activeRoom.name}
+              className="w-7 h-7 md:w-8 md:h-8 rounded-full object-cover mb-4 shadow-sm flex-shrink-0"
+            />
+            <div className="flex flex-col items-start">
+              <div className="bg-white dark:bg-gray-700 rounded-2xl rounded-bl-sm shadow-sm border border-gray-50 dark:border-gray-600 px-4 py-3">
+                <div className="flex items-center gap-1.5">
+                  <span className="w-2 h-2 rounded-full bg-blue-400 animate-bounce [animation-delay:-0.2s]"></span>
+                  <span className="w-2 h-2 rounded-full bg-blue-400 animate-bounce [animation-delay:-0.1s]"></span>
+                  <span className="w-2 h-2 rounded-full bg-blue-400 animate-bounce"></span>
+                </div>
+              </div>
+              <span className="text-[10px] text-blue-400 mt-1 mx-1 italic">
+                {activeRoom.name} is typing...
+              </span>
+            </div>
+          </motion.div>
+        )}
       </div>
 
       {/* Khu vực nhập liệu */}

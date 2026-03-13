@@ -8,6 +8,20 @@ const SEND_DELAY_MS = 500;
 const BOT_REPLY_DELAY_MS = 900;
 const ROOMS_META_KEY = "chat_rooms_meta";
 const MAX_CONTEXT_MESSAGES = 12;
+const INITIAL_VISIBLE_MESSAGES = 30;
+const LOAD_MORE_MESSAGES = 40;
+const LOAD_MORE_DELAY_MS = 250;
+const STARTUP_AI_MESSAGE_START_DELAYS = [500, 1700] as const;
+const STARTUP_AI_TYPING_RANGE = [1200, 2200] as const;
+const STARTUP_AI_MESSAGE_COUNT = 2;
+const STARTUP_AI_MESSAGES = [
+  "Hey, just checking in before the next meeting.",
+  "I left you a quick update in case you were offline.",
+  "Can you take a look when you have a minute?",
+  "Small update from my side, nothing urgent.",
+  "I have a follow-up for you when you're back.",
+  "Quick ping, I just sent over the latest context.",
+] as const;
 
 interface RoomMeta {
   id: number;
@@ -22,6 +36,22 @@ const getMessagesFromStorage = (roomId: number): Message[] | null => {
   } catch {
     return null;
   }
+};
+
+const getRoomMessages = (roomId: number): Message[] => {
+  const savedMessages = getMessagesFromStorage(roomId);
+  const seededMessages = roomMessages[roomId] ?? [];
+
+  if (!savedMessages || savedMessages.length === 0) {
+    return seededMessages;
+  }
+
+  // Migrate older local data so lazy-load still has a long history to work with.
+  if (savedMessages.length < seededMessages.length) {
+    return seededMessages;
+  }
+
+  return savedMessages;
 };
 
 const saveMessagesToStorage = (roomId: number, messages: Message[]) => {
@@ -42,7 +72,7 @@ const getLastMessageFromStorage = (
   fallbackMessage: string,
   fallbackTime: string,
 ): { lastMessage: string; time: string } => {
-  const msgs = getMessagesFromStorage(roomId);
+  const msgs = getRoomMessages(roomId);
   if (msgs && msgs.length > 0) {
     const last = msgs[msgs.length - 1];
     return { lastMessage: last.text, time: last.time };
@@ -117,28 +147,56 @@ const buildInitialRooms = (): ChatRoom[] => {
 export const useChatData = () => {
   const [rooms, setRooms] = useState<ChatRoom[]>(() => buildInitialRooms());
   const isInitialMount = useRef(true);
+  const startupSimulationRanRef = useRef(false);
+  const startupTimersRef = useRef<number[]>([]);
 
   const activeRoom = rooms.find((r) => r.isActive) ?? rooms[0];
   const activeRoomId = activeRoom?.id;
   const activeRoomIdRef = useRef<number | undefined>(activeRoomId);
 
   // Load messages for initial active room
-  const [messages, setMessages] = useState<Message[]>(() => {
+  const [allMessages, setAllMessages] = useState<Message[]>(() => {
     if (!activeRoom) return [];
-    return (
-      getMessagesFromStorage(activeRoom.id) ?? roomMessages[activeRoom.id] ?? []
-    );
+    return getRoomMessages(activeRoom.id);
   });
+  const [visibleCounts, setVisibleCounts] = useState<Record<number, number>>(
+    () =>
+      activeRoom?.id != null
+        ? { [activeRoom.id]: INITIAL_VISIBLE_MESSAGES }
+        : {},
+  );
+  const [isLoadingOlderMessages, setIsLoadingOlderMessages] = useState(false);
+  const loadOlderTimeoutRef = useRef<number | null>(null);
+
+  const activeVisibleCount =
+    activeRoomId == null
+      ? INITIAL_VISIBLE_MESSAGES
+      : visibleCounts[activeRoomId] ?? INITIAL_VISIBLE_MESSAGES;
+  const messages =
+    activeVisibleCount >= allMessages.length
+      ? allMessages
+      : allMessages.slice(-activeVisibleCount);
+  const hasMoreMessages = allMessages.length > messages.length;
 
   // Save messages to localStorage whenever they change
   useEffect(() => {
     if (activeRoomId == null) return;
-    saveMessagesToStorage(activeRoomId, messages);
-  }, [messages, activeRoomId]);
+    saveMessagesToStorage(activeRoomId, allMessages);
+  }, [allMessages, activeRoomId]);
 
   useEffect(() => {
     activeRoomIdRef.current = activeRoomId;
   }, [activeRoomId]);
+
+  useEffect(
+    () => () => {
+      if (loadOlderTimeoutRef.current != null) {
+        window.clearTimeout(loadOlderTimeoutRef.current);
+      }
+      startupTimersRef.current.forEach((timer) => window.clearTimeout(timer));
+    },
+    [],
+  );
 
   // Save room metadata (order, active, unread) whenever rooms change
   useEffect(() => {
@@ -163,7 +221,7 @@ export const useChatData = () => {
       ) {
         try {
           const updatedMessages: Message[] = JSON.parse(e.newValue);
-          setMessages(updatedMessages);
+          setAllMessages(updatedMessages);
         } catch {
           // ignore parse errors from other tabs
         }
@@ -207,13 +265,137 @@ export const useChatData = () => {
           ...room,
           isActive: room.id === roomId,
           unread: room.id === roomId ? 0 : room.unread,
+          isTyping: room.id === roomId ? false : room.isTyping,
+          hasNewMessage: room.id === roomId ? false : room.hasNewMessage,
         })),
       ),
     );
     // Load messages for the newly selected room
-    const saved = getMessagesFromStorage(roomId);
-    setMessages(saved ?? roomMessages[roomId] ?? []);
+    setAllMessages(getRoomMessages(roomId));
+    setVisibleCounts((prev) => ({
+      ...prev,
+      [roomId]: prev[roomId] ?? INITIAL_VISIBLE_MESSAGES,
+    }));
+    setIsLoadingOlderMessages(false);
   }, []);
+
+  const addIncomingMessage = useCallback(
+    (roomId: number, text: string) => {
+      const incomingMessage: Message = {
+        id: Date.now() + Math.floor(Math.random() * 1000),
+        senderId: roomId,
+        text,
+        time: new Date().toLocaleTimeString([], {
+          hour: "2-digit",
+          minute: "2-digit",
+        }),
+        timestamp: Date.now(),
+      };
+
+      const currentMessages = getRoomMessages(roomId);
+      const nextMessages = [...currentMessages, incomingMessage];
+
+      saveMessagesToStorage(roomId, nextMessages);
+      if (activeRoomIdRef.current === roomId) {
+        setAllMessages(nextMessages);
+      }
+
+      setRooms((prev) => {
+        const next = prev.map((room) => {
+          if (room.id !== roomId) return room;
+          return {
+            ...room,
+            isTyping: false,
+            hasNewMessage: !room.isActive,
+            unread: room.isActive ? 0 : room.unread + 1,
+          };
+        });
+        return moveRoomToTop(buildEnrichedRooms(next), roomId);
+      });
+    },
+    [],
+  );
+
+  const setRoomTyping = useCallback((roomId: number, isTyping: boolean) => {
+    setRooms((prev) =>
+      moveRoomToTop(
+        prev.map((room) =>
+          room.id === roomId
+            ? {
+                ...room,
+                isTyping,
+                hasNewMessage: isTyping ? false : room.hasNewMessage,
+              }
+            : room,
+        ),
+        roomId,
+      ),
+    );
+  }, []);
+
+  const loadOlderMessages = useCallback(() => {
+    if (activeRoomId == null || isLoadingOlderMessages) return;
+
+    const totalMessages = getRoomMessages(activeRoomId).length;
+    const currentVisible = visibleCounts[activeRoomId] ?? INITIAL_VISIBLE_MESSAGES;
+    if (currentVisible >= totalMessages) return;
+
+    setIsLoadingOlderMessages(true);
+    loadOlderTimeoutRef.current = window.setTimeout(() => {
+      setVisibleCounts((prev) => ({
+        ...prev,
+        [activeRoomId]: Math.min(
+          (prev[activeRoomId] ?? INITIAL_VISIBLE_MESSAGES) + LOAD_MORE_MESSAGES,
+          totalMessages,
+        ),
+      }));
+      setIsLoadingOlderMessages(false);
+      loadOlderTimeoutRef.current = null;
+    }, LOAD_MORE_DELAY_MS);
+  }, [activeRoomId, allMessages.length, isLoadingOlderMessages, visibleCounts]);
+
+  useEffect(() => {
+    if (startupSimulationRanRef.current || rooms.length === 0) return;
+    startupSimulationRanRef.current = true;
+
+    const inactiveRoomIds = rooms.filter((room) => !room.isActive).map((room) => room.id);
+    if (inactiveRoomIds.length === 0) return;
+
+    const shuffledRoomIds = [...inactiveRoomIds].sort(() => Math.random() - 0.5);
+    const totalIncomingMessages = Math.min(
+      shuffledRoomIds.length,
+      STARTUP_AI_MESSAGE_COUNT,
+    );
+
+    shuffledRoomIds.slice(0, totalIncomingMessages).forEach((roomId, index) => {
+      const startDelay =
+        STARTUP_AI_MESSAGE_START_DELAYS[index] ??
+        STARTUP_AI_MESSAGE_START_DELAYS[
+          STARTUP_AI_MESSAGE_START_DELAYS.length - 1
+        ] +
+          index * 900;
+      const typingDuration =
+        STARTUP_AI_TYPING_RANGE[0] +
+        Math.floor(
+          Math.random() *
+            (STARTUP_AI_TYPING_RANGE[1] - STARTUP_AI_TYPING_RANGE[0]),
+        );
+      const messageText =
+        STARTUP_AI_MESSAGES[
+          Math.floor(Math.random() * STARTUP_AI_MESSAGES.length)
+        ];
+
+      const typingTimer = window.setTimeout(() => {
+        setRoomTyping(roomId, true);
+      }, startDelay);
+
+      const messageTimer = window.setTimeout(() => {
+        addIncomingMessage(roomId, messageText);
+      }, startDelay + typingDuration);
+
+      startupTimersRef.current.push(typingTimer, messageTimer);
+    });
+  }, [addIncomingMessage, rooms, setRoomTyping]);
 
   // Optimistic UI: send message with "sending" status, then confirm after delay
   const sendMessage = useCallback(
@@ -233,35 +415,42 @@ export const useChatData = () => {
           hour: "2-digit",
           minute: "2-digit",
         }),
+        timestamp: Date.now(),
         status: "sending",
       };
 
-      const baseMessages =
-        getMessagesFromStorage(roomId) ?? roomMessages[roomId] ?? [];
+      const baseMessages = getRoomMessages(roomId);
       const optimisticMessages = [...baseMessages, newMsg];
 
       saveMessagesToStorage(roomId, optimisticMessages);
+      setVisibleCounts((prev) => ({
+        ...prev,
+        [roomId]: Math.max(
+          prev[roomId] ?? INITIAL_VISIBLE_MESSAGES,
+          INITIAL_VISIBLE_MESSAGES,
+        ),
+      }));
       if (activeRoomIdRef.current === roomId) {
-        setMessages(optimisticMessages);
+        setAllMessages(optimisticMessages);
       }
       setRooms((prev) => moveRoomToTop(buildEnrichedRooms(prev), roomId));
 
       // Simulate network delay → flip status to "sent"
       setTimeout(() => {
-        const latestMessages =
-          getMessagesFromStorage(roomId) ?? optimisticMessages;
+        const latestMessages = getRoomMessages(roomId) ?? optimisticMessages;
         const confirmedMessages: Message[] = latestMessages.map((m) =>
           m.id === newMsg.id ? { ...m, status: "sent" as const } : m,
         );
 
         saveMessagesToStorage(roomId, confirmedMessages);
         if (activeRoomIdRef.current === roomId) {
-          setMessages(confirmedMessages);
+          setAllMessages(confirmedMessages);
         }
         setRooms((prev) => moveRoomToTop(buildEnrichedRooms(prev), roomId));
 
         const contextMessages = confirmedMessages.slice(-MAX_CONTEXT_MESSAGES);
         setTimeout(async () => {
+          setRoomTyping(roomId, true);
           const botReplyText = await generateFakeUserReply({
             roomName,
             conversation: contextMessages,
@@ -276,33 +465,44 @@ export const useChatData = () => {
               hour: "2-digit",
               minute: "2-digit",
             }),
+            timestamp: Date.now() + 1,
           };
 
-          const currentRoomMessages =
-            getMessagesFromStorage(roomId) ?? confirmedMessages;
+          const currentRoomMessages = getRoomMessages(roomId) ?? confirmedMessages;
           const withBotReply: Message[] = [...currentRoomMessages, botMessage];
 
           saveMessagesToStorage(roomId, withBotReply);
           if (activeRoomIdRef.current === roomId) {
-            setMessages(withBotReply);
+            setAllMessages(withBotReply);
           }
 
           setRooms((prev) => {
             const withUnread = prev.map((room) => {
               if (room.id !== roomId) return room;
-              if (room.isActive) return room;
-              return { ...room, unread: room.unread + 1 };
+              if (room.isActive) {
+                return {
+                  ...room,
+                  isTyping: false,
+                  hasNewMessage: false,
+                };
+              }
+              return {
+                ...room,
+                unread: room.unread + 1,
+                isTyping: false,
+                hasNewMessage: true,
+              };
             });
             return moveRoomToTop(buildEnrichedRooms(withUnread), roomId);
           });
         }, BOT_REPLY_DELAY_MS);
       }, SEND_DELAY_MS);
     },
-    [activeRoomId, rooms],
+    [activeRoomId, rooms, setRoomTyping],
   );
 
   const toggleReaction = useCallback((msgId: number, emoji: string) => {
-    setMessages((prev) =>
+    setAllMessages((prev) =>
       prev.map((msg) => {
         if (msg.id !== msgId) return msg;
         const current = msg.reactions ?? [];
@@ -323,6 +523,9 @@ export const useChatData = () => {
     messages,
     selectRoom,
     sendMessage,
+    hasMoreMessages,
+    isLoadingOlderMessages,
+    loadOlderMessages,
     toggleReaction,
   };
 };

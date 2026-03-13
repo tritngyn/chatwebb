@@ -9,6 +9,7 @@ export interface Message {
   senderId: string | number;
   text: string;
   time: string;
+  timestamp?: number;
   reactions?: string[];
   status?: "sending" | "sent";
 }
@@ -21,6 +22,8 @@ export interface ChatRoom {
   unread: number;
   avatar: string;
   isActive: boolean;
+  isTyping?: boolean;
+  hasNewMessage?: boolean;
 }
 
 export interface CalendarEvent {

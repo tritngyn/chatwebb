@@ -77,12 +77,29 @@ const ChatList = () => {
                 <span className="text-[11px] text-gray-400">{room.time}</span>
               </div>
               <p
-                className={`text-xs truncate ${room.isActive ? "text-gray-600 dark:text-gray-300" : "text-gray-400"}`}
+                className={`text-xs truncate ${
+                  room.isTyping
+                    ? "text-blue-500 dark:text-blue-300 italic"
+                    : room.isActive
+                      ? "text-gray-600 dark:text-gray-300"
+                      : "text-gray-400"
+                }`}
               >
-                {room.lastMessage}
+                {room.isTyping ? "typing..." : room.lastMessage}
               </p>
             </div>
-            {room.unread > 0 && !room.isActive && (
+            {!room.isActive && room.isTyping && (
+              <div className="flex items-center gap-1 px-2 py-1 rounded-full bg-blue-50 dark:bg-blue-950/50 text-[10px] text-blue-500 dark:text-blue-300">
+                <span className="w-1.5 h-1.5 rounded-full bg-current animate-pulse"></span>
+                <span>Typing</span>
+              </div>
+            )}
+            {!room.isActive && !room.isTyping && room.hasNewMessage && (
+              <div className="px-2 py-1 rounded-full bg-red-500 text-white text-[10px] font-semibold tracking-[0.08em] uppercase">
+                New
+              </div>
+            )}
+            {room.unread > 0 && !room.isActive && !room.isTyping && !room.hasNewMessage && (
               <div className="w-2 h-2 rounded-full bg-red-400"></div>
             )}
           </motion.div>
