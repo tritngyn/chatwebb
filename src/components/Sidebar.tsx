@@ -1,14 +1,22 @@
 import { currentUser } from "../mockdata.ts";
-import { faSun, faMoon } from "@fortawesome/free-solid-svg-icons";
+import {
+  faSun,
+  faMoon,
+  faBorderAll,
+  faGear,
+  faChevronDown,
+} from "@fortawesome/free-solid-svg-icons";
+import { faCommentDots, faCalendar } from "@fortawesome/free-regular-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { useChatContext } from "../context/ChatContext";
 import type { AppPage } from "../types/types";
+import type { IconDefinition } from "@fortawesome/fontawesome-svg-core";
 
-const menuItems: { icon: string; label: string; page: AppPage }[] = [
-  { icon: "fa-solid fa-border-all", label: "Dashboard", page: "dashboard" },
-  { icon: "fa-regular fa-comment-dots", label: "Chat", page: "chat" },
-  { icon: "fa-regular fa-calendar", label: "Calendar", page: "calendar" },
-  { icon: "fa-solid fa-gear", label: "Settings", page: "settings" },
+const menuItems: { icon: IconDefinition; label: string; page: AppPage }[] = [
+  { icon: faBorderAll, label: "Dashboard", page: "dashboard" },
+  { icon: faCommentDots, label: "Chat", page: "chat" },
+  { icon: faCalendar, label: "Calendar", page: "calendar" },
+  { icon: faGear, label: "Settings", page: "settings" },
 ];
 
 const Sidebar = () => {
@@ -28,7 +36,10 @@ const Sidebar = () => {
           <div className="hidden lg:block flex-1">
             <h3 className="font-semibold text-sm text-gray-800 dark:text-gray-100">
               {currentUser.name}{" "}
-              <i className="fa-solid fa-chevron-down text-xs ml-1 text-gray-400"></i>
+              <FontAwesomeIcon
+                icon={faChevronDown}
+                className="text-xs ml-1 text-gray-400"
+              />
             </h3>
           </div>
         </div>
@@ -38,13 +49,13 @@ const Sidebar = () => {
             <div
               key={item.page}
               onClick={() => setActivePage(item.page)}
-              className={`flex items-center gap-4 p-3 rounded-2xl cursor-pointer transition-colors ${
+              className={`flex items-center justify-center lg:justify-start gap-4 p-3 rounded-2xl cursor-pointer transition-colors ${
                 activePage === item.page
                   ? "bg-white dark:bg-gray-700 shadow-sm text-blue-500"
                   : "text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 hover:bg-white/50 dark:hover:bg-gray-700/50"
               }`}
             >
-              <i className={`${item.icon} text-lg w-6 text-center`}></i>
+              <FontAwesomeIcon icon={item.icon} className="text-lg w-6" />
               <span className="hidden lg:block font-medium text-sm">
                 {item.label}
               </span>
@@ -58,7 +69,7 @@ const Sidebar = () => {
         {/* Dark/Light Mode Toggle */}
         <button
           onClick={toggleDarkMode}
-          className="flex items-center justify-start gap-3 p-3 rounded-full w-full cursor-pointer transition-all text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 hover:bg-white/50 dark:hover:bg-gray-700/50"
+          className="flex items-center justify-center lg:justify-start gap-3 p-3 rounded-full w-full cursor-pointer transition-all text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 hover:bg-white/50 dark:hover:bg-gray-700/50"
         >
           <FontAwesomeIcon
             icon={darkMode ? faSun : faMoon}
@@ -82,8 +93,7 @@ const Sidebar = () => {
                 : "text-gray-400 active:text-gray-600 dark:active:text-gray-200"
             }`}
           >
-            <i className={`${item.icon} text-lg`}></i>
-            <span className="text-[10px] font-medium">{item.label}</span>
+            <FontAwesomeIcon icon={item.icon} className="text-lg" />
           </button>
         ))}
         <button
@@ -94,9 +104,6 @@ const Sidebar = () => {
             icon={darkMode ? faSun : faMoon}
             className="text-lg"
           />
-          <span className="text-[10px] font-medium">
-            {darkMode ? "Light" : "Dark"}
-          </span>
         </button>
       </div>
     </>
