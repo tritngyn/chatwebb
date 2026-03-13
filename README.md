@@ -100,6 +100,9 @@ Toggle between light and dark themes. Preference saved to localStorage and appli
 # Install dependencies
 npm install
 
+# Create env file for Gemini
+copy .env.example .env
+
 # Start dev server
 npm run dev
 
@@ -110,6 +113,22 @@ npx vitest run
 # Build for production
 npm run build
 ```
+
+## Gemini Fake User Chatbot Setup
+
+1. Open `.env` and set your key:
+
+```bash
+VITE_GEMINI_API_KEY=your_google_ai_api_key_here
+```
+
+2. Run the app and send a message in any room.
+3. The app will call Gemini and return a short in-character fake-user reply for that room.
+
+Implementation files:
+
+- `src/services/fakeUserBot.ts`
+- `src/hooks/useChatData.ts`
 
 ## Testing
 
