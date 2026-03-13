@@ -18,6 +18,7 @@ const ChatWindow = () => {
 
   const [inputText, setInputText] = useState("");
   const messagesContainerRef = useRef<HTMLDivElement>(null);
+  const isSubmittingRef = useRef(false);
   const [activeReactionId, setActiveReactionId] = useState<number | null>(null);
   const [showInputEmoji, setShowInputEmoji] = useState(false);
 
@@ -38,13 +39,20 @@ const ChatWindow = () => {
   }, [messages, activeRoom?.id]);
 
   const handleSend = () => {
-    if (!inputText.trim()) return;
-    sendMessage(inputText);
+    const trimmedText = inputText.trim();
+    if (!trimmedText || isSubmittingRef.current) return;
+
+    isSubmittingRef.current = true;
+    sendMessage(trimmedText);
     setInputText("");
+    queueMicrotask(() => {
+      isSubmittingRef.current = false;
+    });
   };
 
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === "Enter") handleSend();
+  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    handleSend();
   };
 
   return (
@@ -181,7 +189,10 @@ const ChatWindow = () => {
       </div>
 
       {/* Khu vực nhập liệu */}
-      <div className="p-3 md:p-6 bg-white dark:bg-gray-800 md:rounded-br-3xl transition-colors duration-300">
+      <form
+        onSubmit={handleSubmit}
+        className="p-3 md:p-6 bg-white dark:bg-gray-800 md:rounded-br-3xl transition-colors duration-300"
+      >
         <div className="relative flex items-center bg-gray-50 dark:bg-gray-700 rounded-full px-3 md:px-4 py-2 border border-gray-100 dark:border-gray-600 focus-within:ring-2 focus-within:ring-blue-100 dark:focus-within:ring-blue-900 transition-all">
           {/* Nút mở Emoji Picker cho input */}
           <div className="relative" onClick={(e) => e.stopPropagation()}>
@@ -212,19 +223,18 @@ const ChatWindow = () => {
             type="text"
             value={inputText}
             onChange={(e) => setInputText(e.target.value)}
-            onKeyDown={handleKeyDown}
             placeholder="Type a message..."
             className="flex-1 bg-transparent text-sm focus:outline-none text-gray-700 dark:text-gray-200 placeholder:text-gray-400 dark:placeholder:text-gray-500 py-1"
           />
 
           <button
-            onClick={handleSend}
+            type="submit"
             className="w-9 h-9 md:w-10 md:h-10 rounded-full bg-blue-500 text-white flex items-center justify-center hover:bg-blue-600 shadow-md shadow-blue-200 dark:shadow-blue-900/30 transition-colors ml-2 z-0"
           >
             <FontAwesomeIcon icon={faPaperPlane} className="z-10" />
           </button>
         </div>
-      </div>
+      </form>
     </div>
   );
 };
