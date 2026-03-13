@@ -221,42 +221,42 @@ const Calendar = () => {
   );
 
   return (
-    <div className="flex-1 bg-[#f8f9fe] flex flex-col rounded-r-3xl overflow-hidden">
+    <div className="flex-1 bg-[#f8f9fe] flex flex-col rounded-none md:rounded-r-3xl overflow-hidden">
       {/* Header */}
-      <div className="flex justify-between items-center px-6 py-4 border-b border-gray-200 bg-gradient-to-r from-white via-blue-50 to-blue-100 rounded-tr-3xl">
-        <div className="flex items-center gap-3">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 px-3 md:px-6 py-3 md:py-4 border-b border-gray-200 bg-gradient-to-r from-white via-blue-50 to-blue-100 md:rounded-tr-3xl">
+        <div className="flex items-center gap-2 md:gap-3">
           <button
             onClick={goToday}
-            className="px-4 py-1.5 text-sm font-medium border border-gray-300 rounded-full hover:bg-white transition-colors"
+            className="px-3 md:px-4 py-1.5 text-xs md:text-sm font-medium border border-gray-300 rounded-full hover:bg-white transition-colors"
           >
             Today
           </button>
           <button
             onClick={goPrev}
-            className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-white/70 transition-colors"
+            className="w-7 h-7 md:w-8 md:h-8 flex items-center justify-center rounded-full hover:bg-white/70 transition-colors"
           >
-            <i className="fa-solid fa-chevron-left text-sm text-gray-600"></i>
+            <i className="fa-solid fa-chevron-left text-xs md:text-sm text-gray-600"></i>
           </button>
           <button
             onClick={goNext}
-            className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-white/70 transition-colors"
+            className="w-7 h-7 md:w-8 md:h-8 flex items-center justify-center rounded-full hover:bg-white/70 transition-colors"
           >
-            <i className="fa-solid fa-chevron-right text-sm text-gray-600"></i>
+            <i className="fa-solid fa-chevron-right text-xs md:text-sm text-gray-600"></i>
           </button>
-          <h2 className="text-xl font-bold text-gray-800 ml-2">
+          <h2 className="text-base md:text-xl font-bold text-gray-800 ml-1 md:ml-2">
             {MONTH_NAMES[currentMonth]} {currentYear}
           </h2>
         </div>
       </div>
 
       {/* Calendar grid */}
-      <div className="flex-1 flex flex-col p-4 overflow-hidden">
+      <div className="flex-1 flex flex-col p-2 md:p-4 overflow-hidden">
         {/* Day headers */}
         <div className="grid grid-cols-7 mb-1">
           {DAYS.map((d) => (
             <div
               key={d}
-              className="text-center text-xs font-semibold text-gray-400 py-2"
+              className="text-center text-[10px] md:text-xs font-semibold text-gray-400 py-1 md:py-2"
             >
               {d}
             </div>
@@ -274,13 +274,13 @@ const Calendar = () => {
               <div
                 key={idx}
                 onClick={() => openCreateModal(dateKey)}
-                className={`border-r border-b border-gray-200 p-1.5 min-h-[80px] cursor-pointer transition-colors hover:bg-blue-50/40 ${
+                className={`border-r border-b border-gray-200 p-1 md:p-1.5 min-h-[48px] md:min-h-[80px] cursor-pointer transition-colors hover:bg-blue-50/40 ${
                   cell.isCurrentMonth ? "bg-white" : "bg-gray-50/50"
                 }`}
               >
                 <div className="flex justify-between items-start">
                   <span
-                    className={`text-xs font-medium w-6 h-6 flex items-center justify-center rounded-full ${
+                    className={`text-[10px] md:text-xs font-medium w-5 h-5 md:w-6 md:h-6 flex items-center justify-center rounded-full ${
                       isToday
                         ? "bg-blue-500 text-white"
                         : cell.isCurrentMonth
@@ -291,27 +291,48 @@ const Calendar = () => {
                     {cell.day}
                   </span>
                 </div>
-                {/* Events */}
+                {/* Events - dots on mobile, full text on md+ */}
                 <div className="mt-0.5 space-y-0.5">
-                  {dayEvents.slice(0, 3).map((ev) => (
-                    <div
-                      key={ev.id}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setSelectedEvent(ev);
-                      }}
-                      className="text-[10px] leading-tight px-1.5 py-0.5 rounded truncate text-white cursor-pointer hover:opacity-80 transition-opacity"
-                      style={{ backgroundColor: ev.color }}
-                      title={`${ev.startTime}–${ev.endTime} ${ev.title}`}
-                    >
-                      {ev.startTime} {ev.title}
-                    </div>
-                  ))}
-                  {dayEvents.length > 3 && (
-                    <div className="text-[10px] text-gray-400 pl-1.5">
-                      +{dayEvents.length - 3} more
-                    </div>
-                  )}
+                  {/* Mobile: colored dots */}
+                  <div className="flex md:hidden gap-0.5 flex-wrap">
+                    {dayEvents.slice(0, 3).map((ev) => (
+                      <div
+                        key={ev.id}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setSelectedEvent(ev);
+                        }}
+                        className="w-1.5 h-1.5 rounded-full cursor-pointer"
+                        style={{ backgroundColor: ev.color }}
+                        title={`${ev.startTime}–${ev.endTime} ${ev.title}`}
+                      />
+                    ))}
+                    {dayEvents.length > 3 && (
+                      <span className="text-[8px] text-gray-400">+{dayEvents.length - 3}</span>
+                    )}
+                  </div>
+                  {/* Desktop: full event labels */}
+                  <div className="hidden md:block space-y-0.5">
+                    {dayEvents.slice(0, 3).map((ev) => (
+                      <div
+                        key={ev.id}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setSelectedEvent(ev);
+                        }}
+                        className="text-[10px] leading-tight px-1.5 py-0.5 rounded truncate text-white cursor-pointer hover:opacity-80 transition-opacity"
+                        style={{ backgroundColor: ev.color }}
+                        title={`${ev.startTime}–${ev.endTime} ${ev.title}`}
+                      >
+                        {ev.startTime} {ev.title}
+                      </div>
+                    ))}
+                    {dayEvents.length > 3 && (
+                      <div className="text-[10px] text-gray-400 pl-1.5">
+                        +{dayEvents.length - 3} more
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
             );

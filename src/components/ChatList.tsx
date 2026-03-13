@@ -1,13 +1,9 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
-import type { ChatRoom } from "../types/types";
+import { useChatContext } from "../context/ChatContext";
 
-interface ChatListProps {
-  rooms: ChatRoom[];
-  onSelectRoom: (roomId: number) => void;
-}
-
-const ChatList = ({ rooms, onSelectRoom }: ChatListProps) => {
+const ChatList = () => {
+  const { rooms, selectRoom, setShowChatWindow } = useChatContext();
   const [searchQuery, setSearchQuery] = useState("");
 
   const filteredRooms = rooms.filter(
@@ -15,10 +11,18 @@ const ChatList = ({ rooms, onSelectRoom }: ChatListProps) => {
       room.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       room.lastMessage?.toLowerCase().includes(searchQuery.toLowerCase()),
   );
+
+  const handleRoomClick = (roomId: number) => {
+    selectRoom(roomId);
+    setShowChatWindow(true);
+  };
+
   return (
-    <div className="w-72 md:w-80 bg-gradient-to-b from-white to-blue-50/30 dark:from-gray-800 dark:to-gray-850 border-r border-gray-100 dark:border-gray-700 flex flex-col relative z-10 transition-colors duration-300">
-      <div className="p-6 pb-2">
-        <h1 className="text-2xl font-bold text-gray-800 dark:text-gray-100 mb-4">ChatApp</h1>
+    <div className="w-full md:w-72 lg:w-80 h-full min-h-0 bg-gradient-to-b from-white to-blue-50/30 dark:from-gray-800 dark:to-gray-850 md:border-r border-gray-100 dark:border-gray-700 flex flex-col relative z-10 transition-colors duration-300">
+      <div className="p-4 md:p-6 pb-2">
+        <h1 className="text-xl md:text-2xl font-bold text-gray-800 dark:text-gray-100 mb-4">
+          ChatApp
+        </h1>
         <div className="relative group">
           <i className="fa-solid fa-magnifying-glass absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 text-sm group-focus-within:text-blue-500 transition-colors"></i>
           <input
@@ -39,7 +43,7 @@ const ChatList = ({ rooms, onSelectRoom }: ChatListProps) => {
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-4 space-y-1 custom-scrollbar">
+      <div className="flex-1 min-h-0 overflow-y-auto p-3 md:p-4 space-y-1 custom-scrollbar">
         {filteredRooms.length === 0 && (
           <div className="flex flex-col items-center justify-center h-40 text-gray-400">
             <i className="fa-solid fa-magnifying-glass text-2xl mb-2"></i>
@@ -53,7 +57,7 @@ const ChatList = ({ rooms, onSelectRoom }: ChatListProps) => {
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.3, delay: index * 0.05 }}
-            onClick={() => onSelectRoom(room.id)}
+            onClick={() => handleRoomClick(room.id)}
             className={`flex items-center gap-3 p-3 rounded-2xl cursor-pointer transition-all ${
               room.isActive
                 ? "bg-white dark:bg-gray-700 shadow-[0_8px_20px_rgb(0,0,0,0.08)] dark:shadow-[0_8px_20px_rgb(0,0,0,0.3)] border border-gray-50 dark:border-gray-600 scale-105 my-2 z-10 relative"

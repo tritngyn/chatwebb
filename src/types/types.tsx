@@ -9,7 +9,8 @@ export interface Message {
   senderId: string | number;
   text: string;
   time: string;
-  reactions?: string[]; // Dấu ? nghĩa là có thể có hoặc không
+  reactions?: string[];
+  status?: "sending" | "sent";
 }
 
 export interface ChatRoom {
@@ -31,3 +32,13 @@ export interface CalendarEvent {
   color: string;
   description?: string;
 }
+
+/** Utility types */
+export type ChatRoomPreview = Pick<
+  ChatRoom,
+  "id" | "name" | "avatar" | "lastMessage" | "time" | "unread"
+>;
+export type MessageWithoutStatus = Omit<Message, "status">;
+
+/** Page type for navigation */
+export type AppPage = "dashboard" | "chat" | "calendar" | "settings";
