@@ -208,6 +208,53 @@ export const useChatData = () => {
     saveRoomsMetaToStorage(rooms);
   }, [rooms]);
 
+  // --- Intro sequence ---
+  useEffect(() => {
+    if (localStorage.getItem("intro_bots_fired")) return;
+
+    const sendIntro = (roomId: number, text: string) => {
+      const newMsg: Message = {
+        id: Date.now() + Math.random(),
+        senderId: roomId,
+        text,
+        time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+      };
+
+      const currentRoomMessages = getMessagesFromStorage(roomId) ?? roomMessages[roomId] ?? [];
+      const updatedMessages = [...currentRoomMessages, newMsg];
+      saveMessagesToStorage(roomId, updatedMessages);
+
+      if (activeRoomIdRef.current === roomId) {
+        setAllMessages(updatedMessages);
+      }
+
+      setRooms((prev) => {
+        const withUnread = prev.map((room) => {
+          if (room.id !== roomId) return room;
+          if (room.isActive) return room;
+          return { ...room, unread: room.unread + 1 };
+        });
+        return moveRoomToTop(buildEnrichedRooms(withUnread), roomId);
+      });
+    };
+
+    // First bot message at 5s
+    const timer1 = setTimeout(() => {
+      sendIntro(2, "Hey there! Welcome to the new chat interface. It looks really clean.");
+    }, 5000);
+
+    // Second bot message at 8.5s
+    const timer2 = setTimeout(() => {
+      sendIntro(4, "This frontend is snappy! The local persistence works flawlessly. 🚀");
+      localStorage.setItem("intro_bots_fired", "1");
+    }, 8500);
+
+    return () => {
+      clearTimeout(timer1);
+      clearTimeout(timer2);
+    };
+  }, []);
+
   // Cross-tab synchronization
   useEffect(() => {
     const handleStorageChange = (e: StorageEvent) => {
